@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Kapperplekcheck</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Barbershop monitor</p>
+        <h1>Kapperplekcheck</h1>
+      </div>
+      <div class="actions">
+        <button
+          id="notifications-button"
+          class="button button-secondary"
+          type="button"
+        >
+          Meldingen inschakelen
+        </button>
+        <button id="refresh-button" class="button button-primary" type="button">
+          Vernieuwen
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="statusbar" aria-label="Controlestatus">
+        <div>
+          <span
+            id="status-indicator"
+            class="status-indicator status-idle"
+            aria-hidden="true"
+          ></span>
+          <strong id="status-text">Kies de momenten die je wilt volgen.</strong>
+        </div>
+        <span id="last-checked" class="last-checked"
+          >Nog niet gecontroleerd</span
+        >
+      </section>
+
+      <p id="error-message" class="error-message" role="alert" hidden></p>
+
+      <section class="monitor" aria-labelledby="monitor-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Komende 60 dagen</p>
+            <h2 id="monitor-heading">Momenten volgen</h2>
+          </div>
+          <span id="selection-count" class="selection-count">0 momenten</span>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Datum</th>
+                <th scope="col" class="period-heading">
+                  <label
+                    ><input type="checkbox" data-select-all="morning" />
+                    Ochtend</label
+                  >
+                  <small>10:00</small>
+                </th>
+                <th scope="col" class="period-heading">
+                  <label
+                    ><input type="checkbox" data-select-all="afternoon" />
+                    Middag</label
+                  >
+                  <small>13:00 / 15:30</small>
+                </th>
+                <th scope="col" class="period-heading">
+                  <label
+                    ><input type="checkbox" data-select-all="evening" />
+                    Avond</label
+                  >
+                  <small>18:30</small>
+                </th>
+                <th scope="col">Beschikbaarheid</th>
+              </tr>
+            </thead>
+            <tbody id="dates-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
