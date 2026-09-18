@@ -1,0 +1,10 @@
+{
+  "appId": "nl.timraasveld.kapperplekcheck",
+  "appName": "Kapperplekcheck",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

@@ -69,3 +69,28 @@ export async function fetchAvailabilityWeek(weekStart, fetchImpl = fetch) {
 
   return week;
 }
+
+export async function fetchAvailabilityWeeks(weekStarts, fetchImpl = fetch) {
+  const results = await Promise.all(
+    weekStarts.map(async (weekStart) => {
+      try {
+        return { week: await fetchAvailabilityWeek(weekStart, fetchImpl) };
+      } catch (error) {
+        return {
+          error: {
+            weekStart,
+            message: error instanceof Error ? error.message : String(error),
+          },
+        };
+      }
+    }),
+  );
+
+  return {
+    fetchedAt: new Date().toISOString(),
+    weeks: results.flatMap((result) => (result.week ? [result.week] : [])),
+    errors: results.flatMap((result) =>
+      result.error ? [result.error] : [],
+    ),
+  };
+}

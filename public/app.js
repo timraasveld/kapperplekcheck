@@ -8,9 +8,12 @@ import {
   periodForTime,
   selectionKey,
 } from "/domain.js";
+import { fetchAvailabilityWeeks } from "/source.js";
 
 const STORAGE_KEY = "Kapperplekcheck:selected-v1";
 const POLL_INTERVAL = 10 * 60 * 1000;
+const IS_NATIVE_APP =
+  globalThis.Capacitor?.isNativePlatform?.() === true;
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   timeZone: "UTC",
   weekday: "short",
@@ -76,6 +79,17 @@ function selectedWeeks() {
         .map(getWeekStart),
     ),
   ].sort();
+}
+
+async function loadAvailability(weeks) {
+  if (IS_NATIVE_APP) {
+    return fetchAvailabilityWeeks(weeks);
+  }
+
+  const search = new URLSearchParams();
+  weeks.forEach((week) => search.append("week", week));
+  const response = await fetch(`/api/availability?${search}`);
+  return response.json();
 }
 
 function renderRows() {
@@ -290,10 +304,7 @@ async function refreshAvailability() {
   renderAvailability();
 
   try {
-    const search = new URLSearchParams();
-    weeks.forEach((week) => search.append("week", week));
-    const response = await fetch(`/api/availability?${search}`);
-    const payload = await response.json();
+    const payload = await loadAvailability(weeks);
     const newlyAvailable = [];
 
     for (const week of payload.weeks ?? []) {
@@ -351,19 +362,53 @@ async function refreshAvailability() {
   }
 }
 
-function alertFor(cells) {
+async function getNativeNotifications() {
+  const { LocalNotifications } = await import(
+    "@capacitor/local-notifications"
+  );
+  return LocalNotifications;
+}
+
+async function alertFor(cells) {
   if (cells.length === 0) {
     return;
   }
 
   playSound();
+  const descriptions = cells.map(
+    (cell) => `${formatDate(cell.date)} ${formatTime(cell.time)}`,
+  );
+
+  if (IS_NATIVE_APP) {
+    try {
+      const notifications = await getNativeNotifications();
+      const permission = await notifications.checkPermissions();
+      if (permission.display !== "granted") {
+        return;
+      }
+
+      await notifications.schedule({
+        notifications: [
+          {
+            id: Date.now() % 2_147_483_647,
+            title:
+              cells.length === 1
+                ? "Nieuwe vrije plek"
+                : `${cells.length} nieuwe vrije plekken`,
+            body: descriptions.join(", "),
+          },
+        ],
+      });
+    } catch {
+      // Availability should remain current when Android cannot show an alert.
+    }
+    return;
+  }
+
   if (!("Notification" in window) || Notification.permission !== "granted") {
     return;
   }
 
-  const descriptions = cells.map(
-    (cell) => `${formatDate(cell.date)} ${formatTime(cell.time)}`,
-  );
   const notification = new Notification(
     cells.length === 1
       ? "Nieuwe vrije plek"
@@ -404,13 +449,27 @@ async function enableNotifications() {
     playSound();
   }
 
+  if (IS_NATIVE_APP) {
+    try {
+      const notifications = await getNativeNotifications();
+      const permission = await notifications.requestPermissions();
+      elements.notifications.textContent =
+        permission.display === "granted"
+          ? "Meldingen ingeschakeld"
+          : "Alleen geluid ingeschakeld";
+    } catch {
+      elements.notifications.textContent = "Alleen geluid ingeschakeld";
+    }
+    return;
+  }
+
   if (!("Notification" in window)) {
     elements.notifications.textContent = "Geluid ingeschakeld";
     return;
   }
 
   const permission = await Notification.requestPermission();
-  elements.notifications.textContent =
+    await alertFor(newlyAvailable);
     permission === "granted"
       ? "Meldingen ingeschakeld"
       : "Alleen geluid ingeschakeld";

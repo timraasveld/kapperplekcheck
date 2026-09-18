@@ -12,6 +12,7 @@ const STATIC_FILES = new Map([
   ["/", ["public/index.html", "text/html; charset=utf-8"]],
   ["/app.js", ["public/app.js", "text/javascript; charset=utf-8"]],
   ["/domain.js", ["shared/domain.js", "text/javascript; charset=utf-8"]],
+  ["/source.js", ["src/source.js", "text/javascript; charset=utf-8"]],
   ["/styles.css", ["public/styles.css", "text/css; charset=utf-8"]],
 ]);
 const cache = new Map();

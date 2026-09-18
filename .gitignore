@@ -1,5 +1,12 @@
 .playwright-mcp/
 node_modules/
+www/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/**/build/
+*.jks
+*.keystore
 .env
 .env.*
 !.env.example
