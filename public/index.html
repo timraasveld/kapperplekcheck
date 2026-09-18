@@ -53,9 +53,27 @@
           <span id="selection-count" class="selection-count">0 momenten</span>
         </div>
 
+        <div class="weekly-selection">
+          <h3>Elke week</h3>
+          <table
+            class="weekly-table"
+            aria-label="Wekelijks terugkerende momenten"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Dag</th>
+                <th scope="col">Ochtend</th>
+                <th scope="col">Middag</th>
+                <th scope="col">Avond</th>
+              </tr>
+            </thead>
+            <tbody id="weekly-body"></tbody>
+          </table>
+        </div>
+
         <div class="table-scroll">
           <table>
-            <thead>
+            <thead id="dates-head">
               <tr>
                 <th scope="col">Datum</th>
                 <th scope="col" class="period-heading">

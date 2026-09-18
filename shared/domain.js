@@ -66,17 +66,29 @@ export function selectionKey(date, period) {
   return `${date}|${period}`;
 }
 
+export function weeklySelectionKey(weekday, period) {
+  return `${weekday}|${period}`;
+}
+
+export function isMomentSelected(date, period, selectedKeys, weeklySelectedKeys = new Set()) {
+  const weekday = parseIsoDate(date).getUTCDay();
+  return (
+    selectedKeys.has(selectionKey(date, period)) ||
+    weeklySelectedKeys.has(weeklySelectionKey(weekday, period))
+  );
+}
+
 export function cellKey(date, time) {
   return `${date}|${time}`;
 }
 
-export function findNewlyAvailable(previousPlaces, cells, selectedKeys) {
+export function findNewlyAvailable(previousPlaces, cells, selectedKeys, weeklySelectedKeys = new Set()) {
   return cells.filter((cell) => {
     const period = periodForTime(cell.time);
     const key = cellKey(cell.date, cell.time);
     return (
       period &&
-      selectedKeys.has(selectionKey(cell.date, period)) &&
+      isMomentSelected(cell.date, period, selectedKeys, weeklySelectedKeys) &&
       previousPlaces.has(key) &&
       previousPlaces.get(key) === 0 &&
       cell.places > 0 &&

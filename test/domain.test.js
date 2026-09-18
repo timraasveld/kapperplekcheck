@@ -8,8 +8,10 @@ import {
   getAmsterdamToday,
   getMonitoringDates,
   getWeekStart,
+  isMomentSelected,
   periodForTime,
-  selectionKey
+  selectionKey,
+  weeklySelectionKey
 } from "../shared/domain.js";
 
 test("uses the Netherlands date across a UTC day boundary", () => {
@@ -61,6 +63,25 @@ test("only reports selected zero-to-available transitions", () => {
   ];
 
   assert.deepEqual(findNewlyAvailable(previous, cells, selected), [cells[0]]);
+});
+
+test("a weekly Friday afternoon selection only matches Friday afternoons", () => {
+  const selected = new Set();
+  const weeklySelected = new Set([weeklySelectionKey(5, "afternoon")]);
+  const previous = new Map([
+    [cellKey("2026-09-24", "13:00:00"), 0],
+    [cellKey("2026-09-25", "10:00:00"), 0],
+    [cellKey("2026-09-25", "13:00:00"), 0]
+  ]);
+  const cells = [
+    { date: "2026-09-24", time: "13:00:00", places: 1, closed: false, tooSoon: false },
+    { date: "2026-09-25", time: "10:00:00", places: 1, closed: false, tooSoon: false },
+    { date: "2026-09-25", time: "13:00:00", places: 1, closed: false, tooSoon: false }
+  ];
+
+  assert.equal(isMomentSelected("2026-09-25", "afternoon", selected, weeklySelected), true);
+  assert.equal(isMomentSelected("2026-09-24", "afternoon", selected, weeklySelected), false);
+  assert.deepEqual(findNewlyAvailable(previous, cells, selected, weeklySelected), [cells[2]]);
 });
 
 test("does not report availability without an earlier observation", () => {

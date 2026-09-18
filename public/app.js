@@ -5,8 +5,10 @@ import {
   getAmsterdamToday,
   getMonitoringDates,
   getWeekStart,
+  isMomentSelected,
   periodForTime,
   selectionKey,
+  weeklySelectionKey,
 } from "/domain.js";
 import { fetchAvailabilityWeeks } from "/source.js";
 
@@ -14,6 +16,13 @@ const STORAGE_KEY = "Kapperplekcheck:selected-v1";
 const POLL_INTERVAL = 10 * 60 * 1000;
 const IS_NATIVE_APP =
   globalThis.Capacitor?.isNativePlatform?.() === true;
+const WEEKDAYS = Object.freeze([
+  Object.freeze({ id: 1, label: "Maandag" }),
+  Object.freeze({ id: 2, label: "Dinsdag" }),
+  Object.freeze({ id: 3, label: "Woensdag" }),
+  Object.freeze({ id: 4, label: "Donderdag" }),
+  Object.freeze({ id: 5, label: "Vrijdag" }),
+]);
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   timeZone: "UTC",
   weekday: "short",
@@ -28,6 +37,7 @@ const timeFormatter = new Intl.DateTimeFormat("nl-NL", {
 
 const elements = {
   body: document.querySelector("#dates-body"),
+  datesHead: document.querySelector("#dates-head"),
   error: document.querySelector("#error-message"),
   lastChecked: document.querySelector("#last-checked"),
   notifications: document.querySelector("#notifications-button"),
@@ -35,11 +45,14 @@ const elements = {
   selectionCount: document.querySelector("#selection-count"),
   statusIndicator: document.querySelector("#status-indicator"),
   statusText: document.querySelector("#status-text"),
+  weeklyBody: document.querySelector("#weekly-body"),
 };
 
+const storedSelection = loadSelection();
 const state = {
   dates: getMonitoringDates(getAmsterdamToday()),
-  selected: loadSelection(),
+  selected: storedSelection.dates,
+  weeklySelected: storedSelection.weekly,
   cells: new Map(),
   observedPlaces: new Map(),
   weekStatus: new Map(),
@@ -50,14 +63,27 @@ const state = {
 function loadSelection() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    return new Set(Array.isArray(saved) ? saved : []);
+    if (Array.isArray(saved)) {
+      return { dates: new Set(saved), weekly: new Set() };
+    }
+
+    return {
+      dates: new Set(Array.isArray(saved.dates) ? saved.dates : []),
+      weekly: new Set(Array.isArray(saved.weekly) ? saved.weekly : []),
+    };
   } catch {
-    return new Set();
+    return { dates: new Set(), weekly: new Set() };
   }
 }
 
 function saveSelection() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...state.selected]));
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      dates: [...state.selected],
+      weekly: [...state.weeklySelected],
+    }),
+  );
 }
 
 function formatDate(value) {
@@ -70,12 +96,32 @@ function formatTime(value) {
   return value.slice(0, 5);
 }
 
+function weekdayForDate(value) {
+  return new Date(`${value}T00:00:00Z`).getUTCDay();
+}
+
+function isSelected(date, period) {
+  return isMomentSelected(
+    date,
+    period,
+    state.selected,
+    state.weeklySelected,
+  );
+}
+
+function isWeeklySelected(date, period) {
+  return state.weeklySelected.has(
+    weeklySelectionKey(weekdayForDate(date), period),
+  );
+}
+
 function selectedWeeks() {
   return [
     ...new Set(
-      [...state.selected]
-        .map((key) => key.split("|")[0])
-        .filter((date) => state.dates.includes(date))
+      state.dates
+        .filter((date) =>
+          Object.keys(PERIODS).some((period) => isSelected(date, period)),
+        )
         .map(getWeekStart),
     ),
   ].sort();
@@ -111,7 +157,8 @@ function renderRows() {
       checkbox.type = "checkbox";
       checkbox.dataset.date = date;
       checkbox.dataset.period = periodId;
-      checkbox.checked = state.selected.has(selectionKey(date, periodId));
+      checkbox.checked = isSelected(date, periodId);
+      checkbox.disabled = isWeeklySelected(date, periodId);
       checkbox.setAttribute(
         "aria-label",
         `${formatDate(date)} ${period.label}`,
@@ -137,19 +184,63 @@ function renderRows() {
   renderAvailability();
 }
 
+function renderWeeklyRows() {
+  const fragment = document.createDocumentFragment();
+
+  for (const weekday of WEEKDAYS) {
+    const row = document.createElement("tr");
+    const weekdayCell = document.createElement("th");
+    weekdayCell.scope = "row";
+    weekdayCell.textContent = weekday.label;
+    row.append(weekdayCell);
+
+    for (const [periodId, period] of Object.entries(PERIODS)) {
+      const cell = document.createElement("td");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.weekday = weekday.id;
+      checkbox.dataset.period = periodId;
+      checkbox.checked = state.weeklySelected.has(
+        weeklySelectionKey(weekday.id, periodId),
+      );
+      checkbox.setAttribute(
+        "aria-label",
+        `Elke ${weekday.label.toLowerCase()} ${period.label.toLowerCase()}`,
+      );
+      cell.append(checkbox);
+      row.append(cell);
+    }
+
+    fragment.append(row);
+  }
+
+  elements.weeklyBody.replaceChildren(fragment);
+}
+
 function renderSelectionState() {
-  const validSelections = [...state.selected].filter((key) =>
-    state.dates.includes(key.split("|")[0]),
+  const validSelectionCount = state.dates.reduce(
+    (count, date) =>
+      count +
+      Object.keys(PERIODS).filter((period) => isSelected(date, period)).length,
+    0,
   );
-  elements.selectionCount.textContent = `${validSelections.length} ${validSelections.length === 1 ? "moment" : "momenten"}`;
+  elements.selectionCount.textContent = `${validSelectionCount} ${validSelectionCount === 1 ? "moment" : "momenten"}`;
 
   for (const checkbox of document.querySelectorAll("[data-select-all]")) {
     const period = checkbox.dataset.selectAll;
     const count = state.dates.filter((date) =>
-      state.selected.has(selectionKey(date, period)),
+      isSelected(date, period),
     ).length;
     checkbox.checked = count === state.dates.length;
     checkbox.indeterminate = count > 0 && count < state.dates.length;
+  }
+
+  for (const checkbox of elements.weeklyBody.querySelectorAll(
+    "input[data-weekday][data-period]",
+  )) {
+    checkbox.checked = state.weeklySelected.has(
+      weeklySelectionKey(Number(checkbox.dataset.weekday), checkbox.dataset.period),
+    );
   }
 }
 
@@ -157,7 +248,7 @@ function renderAvailability() {
   for (const date of state.dates) {
     const target = document.querySelector(`[data-availability="${date}"]`);
     const selectedPeriods = Object.keys(PERIODS).filter((period) =>
-      state.selected.has(selectionKey(date, period)),
+      isSelected(date, period),
     );
     target.replaceChildren();
 
@@ -240,7 +331,7 @@ function pruneObservedPlaces() {
   for (const key of state.observedPlaces.keys()) {
     const [date, time] = key.split("|");
     const period = periodForTime(time);
-    if (!period || !state.selected.has(selectionKey(date, period))) {
+    if (!period || !isSelected(date, period)) {
       state.observedPlaces.delete(key);
     }
   }
@@ -264,12 +355,17 @@ function observeWeek(week, suppressNotifications) {
   const cells = week.days.flatMap((day) => day.cells);
   const newlyAvailable = suppressNotifications
     ? []
-    : findNewlyAvailable(state.observedPlaces, cells, state.selected);
+    : findNewlyAvailable(
+        state.observedPlaces,
+        cells,
+        state.selected,
+        state.weeklySelected,
+      );
 
   for (const cell of cells) {
     const period = periodForTime(cell.time);
     const key = cellKey(cell.date, cell.time);
-    if (period && state.selected.has(selectionKey(cell.date, period))) {
+    if (period && isSelected(cell.date, period)) {
       state.observedPlaces.set(
         key,
         cell.closed || cell.tooSoon ? 0 : cell.places,
@@ -498,7 +594,26 @@ elements.body.addEventListener("change", (event) => {
   selectionChanged();
 });
 
-document.querySelector("thead").addEventListener("change", (event) => {
+elements.weeklyBody.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("input[data-weekday][data-period]");
+  if (!checkbox) {
+    return;
+  }
+
+  const key = weeklySelectionKey(
+    Number(checkbox.dataset.weekday),
+    checkbox.dataset.period,
+  );
+  if (checkbox.checked) {
+    state.weeklySelected.add(key);
+  } else {
+    state.weeklySelected.delete(key);
+  }
+  renderRows();
+  selectionChanged();
+});
+
+elements.datesHead.addEventListener("change", (event) => {
   const checkbox = event.target.closest("input[data-select-all]");
   if (!checkbox) {
     return;
@@ -512,6 +627,13 @@ document.querySelector("thead").addEventListener("change", (event) => {
       state.selected.delete(key);
     }
   }
+  if (!checkbox.checked) {
+    for (const weekday of WEEKDAYS) {
+      state.weeklySelected.delete(
+        weeklySelectionKey(weekday.id, checkbox.dataset.selectAll),
+      );
+    }
+  }
   renderRows();
   selectionChanged();
 });
@@ -519,6 +641,7 @@ document.querySelector("thead").addEventListener("change", (event) => {
 elements.refresh.addEventListener("click", refreshAvailability);
 elements.notifications.addEventListener("click", enableNotifications);
 
+renderWeeklyRows();
 renderRows();
 refreshAvailability();
 setInterval(refreshAvailability, POLL_INTERVAL);

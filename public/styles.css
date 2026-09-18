@@ -189,6 +189,61 @@ input:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 
+.weekly-selection {
+  padding: 18px 20px 20px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfb;
+}
+
+.weekly-selection h3 {
+  margin: 0 0 10px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.weekly-table {
+  width: 100%;
+  max-width: 620px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  table-layout: fixed;
+  background: var(--surface);
+}
+
+.weekly-table th,
+.weekly-table td {
+  width: 24%;
+  height: 42px;
+  padding: 7px 12px;
+  text-align: center;
+}
+
+.weekly-table th:first-child,
+.weekly-table td:first-child {
+  width: 28%;
+  text-align: left;
+}
+
+.weekly-table th:not(:first-child),
+.weekly-table td:not(:first-child) {
+  width: 24%;
+}
+
+.weekly-table tbody th {
+  color: var(--ink);
+  background: var(--surface);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.weekly-table tbody tr:last-child th,
+.weekly-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 .table-scroll {
   overflow-x: auto;
 }
@@ -269,6 +324,11 @@ tbody tr:hover {
   text-transform: none;
 }
 
+.period-choice:has(input:disabled) {
+  color: var(--muted);
+  cursor: default;
+}
+
 input[type="checkbox"] {
   width: 17px;
   height: 17px;
@@ -343,6 +403,16 @@ input[type="checkbox"] {
   .section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .weekly-selection {
+    padding-inline: 12px;
+  }
+
+  .weekly-table th,
+  .weekly-table td {
+    padding-inline: 5px;
+    font-size: 0.72rem;
   }
 }
 
